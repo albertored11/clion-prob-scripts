@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+
+# check that number of arguments is 1
+if [[ "$#" -ne 1 ]]; then
+    echo "ERROR: expected 1 argument" >&2
+    exit 1
+fi
+
+# check that argument has no slashes or spaces
+if [[ "$1" =~ "/" || "$1" =~ " " ]]; then
+    echo "ERROR: argument cannot have any slashes or spaces" >&2
+    exit 1
+fi
+
+proj_dir="$PWD"
+
+# find CLion project directory in parents
+while [[ ! -f "$proj_dir/CMakeLists.txt" && "$proj_dir" != "/" ]]; do
+    proj_dir=$(dirname "$proj_dir")
+done
+
+if [[ "$proj_dir" == "/" ]]; then
+    echo "ERROR: CLion project directory not found" >&2
+    exit 1
+fi
+
+# current directory inside project directory
+cur_dir=${PWD#$proj_dir}
+cur_dir=${cur_dir:1}
+
+# same as cur_dir, but replacing slashes with underscores
+cur_dir_desc=${cur_dir//\//_}
+
+template_file="$proj_dir/template.cpp" # template file
+cmakelists_file="$proj_dir/CMakeLists.txt" # CMakeLists file
+
+# make directory for problem (if it does not exist)
+mkdir -p "$1"
+
+# check if source file already exists
+if [[ ! -f "$1/$1.cpp" ]]; then
+    # check if template file exists
+    if [[ -f "$template_file" ]]; then
+        # create source file for problem copying template
+        cp "$template_file" "$1/$1.cpp"
+    else
+        # create blank file
+        touch "$1/$1.cpp"
+    fi
+fi
+
+# insert newline at the end of CMakeLists file if it does not already have it
+sed -i -e '$a\' "$cmakelists_file"
+
+# define executable for new problem in CMakeLists file
+if [[ ! "$cur_dir" == "" ]]; then
+    echo "add_executable(${cur_dir_desc}_$1 ${cur_dir}/$1/$1.cpp)" >> "$cmakelists_file"
+else
+    echo "add_executable($1 $1/$1.cpp)" >> "$cmakelists_file"
+fi

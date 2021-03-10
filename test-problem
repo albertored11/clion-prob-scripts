@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+
+# check that number of arguments is 1
+if [[ "$#" -ne 1 ]]; then
+    echo "ERROR: expected 1 argument" >&2
+    exit 1
+fi
+
+noin=0
+noout=0
+
+# TODO: autodetect in & out files: ls *.in | wc -w == 1
+
+# check if in/out files exist
+if [[ ! -f "$1.in" ]]; then
+    noin=1
+    echo "ERROR: $1.in not found" >&2
+fi
+
+if [[ ! -f "$1.out" ]]; then
+    noout=1
+    echo "ERROR: $1.out not found" >&2
+fi
+
+if [[ "$noin" -eq 1 || "$noout" -eq 1 ]]; then
+    exit 1
+fi
+
+base=$(basename "$PWD")
+
+if ! g++ -std=c++11 -Wall -o "$base" "$base.cpp"; then
+    echo "ERROR: compilation error" >&2
+    exit 1
+fi
+
+if ! "./$base" < "$1.in" > "$base.out"; then
+    echo "ERROR: runtime error" >&2
+    rm "$base" "$base.out"
+    exit 1
+fi
+
+if diff "$1.out" "$base.out"; then
+    echo "Output matches :)"
+    rm "$base" "$base.out"
+    exit 0
+else
+    echo "Output does NOT match :("
+    rm "$base" "$base.out"
+    exit 0
+fi
